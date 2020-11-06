@@ -94,7 +94,7 @@ public class BDI_DataImportBatchStatus_TDTM extends TDTM_Runnable {
 
         for (DataImport__c diOld : diOldList) {
             DataImport__c diNew = diNewMap.get(diOld.Id);
-            if (needsStatusUpdate(diOld, diNew)) {
+            if (needsStatusCheck(diOld, diNew)) {
                 batchIdSet.add(diNew.NPSP_Data_Import_Batch__c);
             }
         }
@@ -102,7 +102,7 @@ public class BDI_DataImportBatchStatus_TDTM extends TDTM_Runnable {
         return batchIdSet;
     }
 
-    private Boolean needsStatusUpdate(DataImport__c diOld, DataImport__c diNew) {
+    private Boolean needsStatusCheck(DataImport__c diOld, DataImport__c diNew) {
         if (diOld.NPSP_Data_Import_Batch__c != diNew.NPSP_Data_Import_Batch__c) {
             // di records changed parents
             if (diOld.NPSP_Data_Import_Batch__c != null) {
@@ -133,13 +133,15 @@ public class BDI_DataImportBatchStatus_TDTM extends TDTM_Runnable {
 
         BatchDataImportStatusAggregator aggregator = getBatchAggregates(batchIdSet);
         List<DataImportBatch__c> batches = new List<DataImportBatch__c>();
+        
         for (Id batchId : batchIdSet) {
-            String status = aggregator.getBatchStatus(batchId);
-            batches.add(new DataImportBatch__c(
-                    Id = batchId,
-                    Batch_Status__c = status
-            ));
-
+            if(aggregator.hasNewStatus(batchId)) {
+                String status = aggregator.getBatchStatus(batchId);
+                batches.add(new DataImportBatch__c(
+                        Id = batchId,
+                        Batch_Status__c = status
+                ));
+            }
         }
 
         update batches;
@@ -147,7 +149,7 @@ public class BDI_DataImportBatchStatus_TDTM extends TDTM_Runnable {
 
     private List<DataImportBatch__c> getBatchesWithFailedRows(Set<Id> batchIds) {
         return [
-                SELECT Id, (
+                SELECT Id, Batch_Status__c, (
                         SELECT Id, Status__c
                         FROM NPSP_Data_Imports__r
                         WHERE Status__c = :BDI_DataImport_API.bdiFailed
@@ -161,7 +163,7 @@ public class BDI_DataImportBatchStatus_TDTM extends TDTM_Runnable {
     private List<DataImportBatch__c> getBatchesWithOpenRows(Set<Id> batchIds) {
         return [
                 SELECT
-                        Id, (
+                        Id, Batch_Status__c, (
                         SELECT Id, Status__c
                         FROM NPSP_Data_Imports__r
                         WHERE Status__c = :BDI_DataImport_API.bdiDryRunValidated
@@ -176,7 +178,7 @@ public class BDI_DataImportBatchStatus_TDTM extends TDTM_Runnable {
 
     private List<DataImportBatch__c> getBatchesWithImportedRows(Set<Id> batchIds) {
         return [
-                SELECT Id, (
+                SELECT Id, Batch_Status__c, (
                         SELECT Id, Status__c
                         FROM NPSP_Data_Imports__r
                         WHERE Status__c = :BDI_DataImport_API.bdiImported
@@ -188,13 +190,19 @@ public class BDI_DataImportBatchStatus_TDTM extends TDTM_Runnable {
     }
 
     private BatchDataImportStatusAggregator getBatchAggregates(Set<Id> batchIds) {
-        List<DataImportBatch__c> failedRowBatches = getBatchesWithFailedRows(batchIds);
-        List<DataImportBatch__c> openRowBatches = getBatchesWithOpenRows(batchIds);
-        List<DataImportBatch__c> importedRowBatches = getBatchesWithImportedRows(batchIds);
-
         BatchDataImportStatusAggregator aggregator = new BatchDataImportStatusAggregator();
+
+        List<DataImportBatch__c> failedRowBatches = getBatchesWithFailedRows(batchIds);
         aggregator.readBatches(failedRowBatches);
+
+        if(aggregator.areAllBatchesFailed()) {
+            return aggregator;
+        }
+
+        List<DataImportBatch__c> openRowBatches = getBatchesWithOpenRows(batchIds);
         aggregator.readBatches(openRowBatches);
+
+        List<DataImportBatch__c> importedRowBatches = getBatchesWithImportedRows(batchIds);
         aggregator.readBatches(importedRowBatches);
 
         return aggregator;
@@ -204,14 +212,27 @@ public class BDI_DataImportBatchStatus_TDTM extends TDTM_Runnable {
      * Aggregator class for determining the status of many Data Import batches at the same time.
      */
     private class BatchDataImportStatusAggregator {
-        Map<Id, BatchDataImportStatus> statusesById;
+        Map<Id, DataImportStatusChecker> statusesById;
 
         BatchDataImportStatusAggregator() {
-            this.statusesById = new Map<Id, BatchDataImportStatus>();
+            this.statusesById = new Map<Id, DataImportStatusChecker>();
         }
 
         String getBatchStatus(Id batchId) {
             return statusesById.get(batchId).getBatchStatus();
+        }
+
+        Boolean hasNewStatus(Id batchId) {
+            return statusesById.get(batchId).hasNewStatus();
+        }
+
+        Boolean areAllBatchesFailed() {
+            for(DataImportStatusChecker checker : statusesById.values()) {
+               if(checker.getBatchStatus() != BDI_DataImport_API.BATCH_STATUS_FAILED) {
+                   return false;
+               }
+            }
+            return true;
         }
 
         /**
@@ -223,7 +244,7 @@ public class BDI_DataImportBatchStatus_TDTM extends TDTM_Runnable {
                 if (statusesById.containsKey(batch.Id)) {
                     statusesById.get(batch.Id).readQueryResult(batch);
                 } else {
-                    BatchDataImportStatus importStatus = new BatchDataImportStatus();
+                    DataImportStatusChecker importStatus = new DataImportStatusChecker();
                     importStatus.readQueryResult(batch);
                     statusesById.put(batch.Id, importStatus);
                 }
@@ -234,15 +255,19 @@ public class BDI_DataImportBatchStatus_TDTM extends TDTM_Runnable {
     /**
      * A class for determining the status of a single Data Import Batch
      */
-    private class BatchDataImportStatus {
+    private class DataImportStatusChecker {
         Boolean hasOpenRow = false;
         Boolean hasImportedRow = false;
         Boolean hasFailedRow = false;
+        String previousStatus;
 
         /**
          * @param batch A data import batch with a single row sub-query on the NPSP_Data_Imports__r relationship
          */
         void readQueryResult(DataImportBatch__c batch) {
+            if(this.previousStatus == null) {
+                setPreviousStatus(batch);
+            }
             if (batch.NPSP_Data_Imports__r != null) {
                 for (DataImport__c dataImport : batch.NPSP_Data_Imports__r) {
                     readRowStatus(dataImport);
@@ -274,6 +299,10 @@ public class BDI_DataImportBatchStatus_TDTM extends TDTM_Runnable {
             }
         }
 
+        void setPreviousStatus(DataImportBatch__c batch) {
+            this.previousStatus = batch.Batch_Status__c;
+        }
+
         /**
          * After ingesting all of the Data Import Batch rows, determine the final batch status.
          * @return {String} One of 'Failed - Needs Review', 'Open', or 'Completed'
@@ -291,6 +320,10 @@ public class BDI_DataImportBatchStatus_TDTM extends TDTM_Runnable {
             }
 
             return BDI_DataImport_API.BATCH_STATUS_OPEN;
+        }
+        
+        Boolean hasNewStatus() {
+            return getBatchStatus() != this.previousStatus;
         }
 
         Boolean isOpen(String status) {
