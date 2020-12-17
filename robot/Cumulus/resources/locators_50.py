@@ -56,6 +56,8 @@ npsp_lex_locators={
     'batch_status':'//div[contains(@class,"slds-tile__title")][.//*[text()="{}"]]/div[contains(@class,"slds-col")]//span[text()="{}"]',
     'popup': "//div[contains(@class, 'uiPopupTarget')][contains(@class, 'visible')]",
     'flexipage-popup':"//div[contains(@class, 'slds-is-open')][contains(@class, 'slds-combobox')]",
+    'newflexi-popup':"//div[@class='modal-body scrollable slds-modal__content slds-p-around--medium']//*[contains(@class,'slds-combobox')]",
+    'modalflexipage-popup':"//div[@class='modal-body scrollable slds-modal__content slds-p-around--medium']//div[contains(@class, 'slds-is-open')][contains(@class, 'slds-combobox')]",
     'test':'/html/body/div[6]/table/tbody/tr[23]/td[1]/a',
     "toast-msg":"//span[@class='toastMessage slds-text-heading--small forceActionsText']",
     "toast-close":"//button[contains(@class,'toastClose')]",
@@ -114,6 +116,7 @@ npsp_lex_locators={
     'dd_options':'//*[@id="p3"]/option[text()="{}"]',
     'related_list_items':'//div[@class = "container forceRelatedListSingleContainer"][.//a[contains(@class, "slds-card")]]//span[text() = "{}"]/ancestor::div[contains(@class, "slds-grid")]/following-sibling::div[.//div[contains(@class, "outputLookupContainer")]]//a[text()="{}"]',
     'span_button':'//span[text()="{}"]',
+    'modalspan_button':'//div[@class="modal-body scrollable slds-modal__content slds-p-around--medium"]//span[text()="{}"]',
     'related_drop_down':'//div/a[contains(@class,"slds-button")]/ancestor::li/div/a',
     'span':"//span[@title='{}']",
     'header_field_value':'//*[contains(@class, "slds-page-header__detail")][.//*[@title="{}"]]//*[text()="{}"]',
@@ -238,6 +241,7 @@ npsp_lex_locators={
         'gift-amount':'//div[./label[text()="{}"]]',
         'modal-link':'//tbody/tr/td/a[text()="{}"]',
         'datepicker_open':"//div[contains(@class,'slds-is-open')][./label[contains(text(),'{}')]]",
+        'modaldatepicker_open':"//div[@class='modal-body scrollable slds-modal__content slds-p-around--medium']//div[contains(@class,'slds-is-open')][./label[contains(text(),'{}')]]"
         },
     'bge-lists':{
         'list1':"//div[./label[text()='{}']]/div//select",
@@ -248,7 +252,7 @@ npsp_lex_locators={
     'bge-duellist-btn':{
         'select-button':'//h3[./span[text()="{}"]]/following-sibling::div//div[contains(@class,"slds-dueling-list__column")]//button[@title="{}"]',
         'select-button2':'//div/div[text()="{}"]/following-sibling::div//div[contains(@class,"slds-dueling-list__column")]//button[@title="{}"]',
-        'field-select-button':'//label[text()="{}"]/following-sibling::lightning-dual-listbox//div[contains(@class,"slds-dueling-list__column")]//button[@title="{}"]',
+        'field-select-button':'//label[text()="{}"]/following-sibling::lightning-dual-listbox//div[contains(@class,"slds-dueling-list__column")]//button[@title="{}"]s',
         },
 
     'object_manager':{
@@ -305,7 +309,15 @@ npsp_lex_locators={
         'new-section-field-bundle':"//article[@data-qa-locator='form section New Section'][.//label[text()='{}']]",
         'alert':'//div[@role="alert" and contains(@class,"slds-theme_{}")][./span[text()="{}"]]/h2[text()="{}"]',
         'element_text':'//*[contains(@data-qa-locator,"{}") and text()="{}"]',
-        'page_error':'//div[@class="pageLevelErrors"]'
+        'page_error':'//div[@class="pageLevelErrors"]',
+        'modal_field':'//div[@class="modal-body scrollable slds-modal__content slds-p-around--medium"]//*[contains(@data-qa-locator,"{}")]//child::{}',
+        'modal_button':'//div[@class="modal-body scrollable slds-modal__content slds-p-around--medium"]//*[contains(@data-qa-locator,"{}")]/button',
+        'modal_id':'//div[@class="modal-body scrollable slds-modal__content slds-p-around--medium"]//*[contains(@data-qa-locator,"{}")]',
+        'modallookup-option':'//div[@class="modal-body scrollable slds-modal__content slds-p-around--medium"]//li/lightning-base-combobox-item[.//*[@title="{}"]]',
+        'remove_lookup':'//div[@class="modal-body scrollable slds-modal__content slds-p-around--medium"]//*[contains(@data-qa-locator,"button Remove selected option Opportunity: Record Type")]',
+        'click-dropkown-value':"//div[@class='modal-body scrollable slds-modal__content slds-p-around--medium']//*[contains(@class,'slds-combobox')]//span[text()='{}'']"
+        #'page_wizard':'//div[@class="modal-body scrollable slds-modal__content slds-p-around--medium"]'
+
         },
     # Enhanced Recurring Donation (erd) related element locators
     'erd':{

@@ -209,7 +209,14 @@ class GiftEntryTemplatePage(BaseNPSPPage, BasePage):
                         option=npsp_lex_locators["span_button"].format(value)
                         self.selenium.click_element(option)
                     elif placeholder=="Search...":
-                        self.salesforce.populate_lookup_field(key,value)
+                        self.salesforce._populate_field(field_loc,value)
+                        qa_id="Select "+value
+                        option=npsp_lex_locators["gift_entry"]["id"].format(qa_id)
+                        self.selenium.wait_until_page_contains_element(option)
+                        try:
+                            self.selenium.click_element(option)
+                        except ElementNotInteractableExceptioin:
+                            self.salesforce._jsclick(option)
                     elif "Date" in field:
                         locator=npsp_lex_locators["bge"]["datepicker_open"].format("Date")
                         self.selenium.wait_until_page_contains_element(locator)
@@ -415,3 +422,235 @@ class GiftEntryFormPage(BaseNPSPPage, BasePage):
         """Validates that the GAU allocation remaining balance is correct"""
         locator=npsp_lex_locators["gift_entry"]["element_text"].format("Remaining Allocation Amount",amount)
         self.selenium.wait_until_page_contains_element(locator,error=f'Remaining allocation amount of {amount} could not be found on page')
+
+    @capture_screenshot_on_error
+    def fill_modal_template_form(self,**kwargs):
+        """Add default values to modal template builder form fields or set fields as required.
+        Key is field main label name and value is again another dictionary of field type and value
+        ex: Payment: Payment Method is Main Label with Default Value as field type and ChecK is value"""
+        self.selenium.execute_javascript("window.scrollBy(0,0)")
+        for field,option in kwargs.items():
+            for section,value in option.items():
+                if section=="Required":
+                    label=f'{section} {field}'
+                    if value=='checked':
+                        field_checkbox=npsp_lex_locators["gift_entry"]["modal_field"].format(label,"input")
+                        self.selenium.scroll_element_into_view(field_checkbox)
+                        cb_loc=self.selenium.get_webelement(field_checkbox)
+                        if not cb_loc.is_selected():
+                            self.salesforce._jsclick(field_checkbox)
+                    elif value=='unchecked':
+                        field_checkbox=npsp_lex_locators["gift_entry"]["modal_field"].format(label,"input")
+                        self.selenium.scroll_element_into_view(field_checkbox)
+                        cb_loc=self.selenium.get_webelement(field_checkbox)
+                        if cb_loc.is_selected():
+                            self.salesforce._jsclick(field_checkbox)
+                elif section=="Default Value":
+                    key=f'{section} {field}'
+                    field_loc=npsp_lex_locators["gift_entry"]["modal_field"].format(key,"input")
+                    placeholder=self.selenium.get_webelement(field_loc).get_attribute("placeholder")
+                    self.selenium.scroll_element_into_view(field_loc)
+                    try:
+                        self.selenium.click_element(field_loc)
+                    except ElementClickInterceptedException:
+                        self.selenium.execute_javascript("window.scrollBy(0,100)")
+                        self.selenium.click_element(field_loc)
+                    if placeholder=="Select an Option":
+                        popup=npsp_lex_locators["flexipage-popup"]
+                        self.selenium.wait_until_page_contains_element(popup)
+                        option=npsp_lex_locators["span_button"].format(value)
+                        self.selenium.click_element(option)
+                    elif placeholder=="Search...":
+                        self.salesforce._populate_field(field_loc,value)
+                        qa_id="Select "+value
+                        option=npsp_lex_locators["gift_entry"]["modal_id"].format(qa_id)
+                        self.selenium.wait_until_page_contains_element(option)
+                        try:
+                            self.selenium.click_element(option)
+                        except ElementNotInteractableExceptioin:
+                            self.salesforce._jsclick(option)
+                    elif "Date" in field:
+                        locator=npsp_lex_locators["bge"]["datepicker_open"].format("Date")
+                        self.selenium.wait_until_page_contains_element(locator)
+                        self.selenium.click_button(value)
+                        self.selenium.wait_until_page_does_not_contain_element(locator,error="could not open datepicker")
+                    else:
+                        self.salesforce._populate_field(field_loc,value)
+                elif section=="Field Label":
+                    key=f'{section} {field}'
+                    field_name=npsp_lex_locators["gift_entry"]["modal_field"].format(key,"input")
+                    self.selenium.input_text(field_name,value,clear=True)
+
+    def click_modal_button(self,title):
+        """clicks on Gift Entry button identified with title"""
+        locator=npsp_lex_locators["gift_entry"]["modal_button"].format(title)
+        self.selenium.wait_until_page_contains_element(locator)
+        self.selenium.scroll_element_into_view(locator)
+        self.selenium.click_element(locator)
+
+    def fill_modal_form(self,**kwargs):
+        """Fill the gift entry modal form fields with specified values.
+        Key is field name and value is value to be entered for field """
+        for key,value in kwargs.items():
+            locator=npsp_lex_locators["gift_entry"]["modal_id"].format(key)
+            type=self.selenium.get_element_attribute(locator,"data-qa-locator")
+            field_locator=npsp_lex_locators["gift_entry"]["modal_field"].format(key,"input")
+            print(f"type is {type}")
+            if 'input autocomplete' in type :
+                self.salesforce._populate_field(locator,value)
+                qa_id="Select "+value
+                option=npsp_lex_locators["gift_entry"]["modal_id"].format(qa_id)
+                self.selenium.wait_until_page_contains_element(option)
+                try:
+                    self.selenium.click_element(option)
+                except ElementNotInteractableExceptioin:
+                    self.salesforce._jsclick(option)
+            elif type.startswith("autocomplete"):
+                self.salesforce._populate_field(field_locator,value)
+                option=npsp_lex_locators["gift_entry"]["modallookup-option"].format(value)
+                self.selenium.wait_until_page_contains_element(option)
+                try:
+                    self.selenium.click_element(option)
+                except ElementNotInteractableException:
+                    self.salesforce._jsclick(option)
+            elif 'combobox' in type :
+                self.selenium.wait_until_page_contains_element(field_locator)
+                self.selenium.click_element(field_locator)
+                popup=npsp_lex_locators["flexipage-popup"]
+                self.selenium.wait_until_page_contains_element(popup)
+                option=npsp_lex_locators["span_button"].format(value)
+                self.selenium.click_element(option)
+            elif 'textarea' in type :
+                field_locator=npsp_lex_locators["gift_entry"]["modal_field"].format(key,"textarea")
+                self.selenium.scroll_element_into_view(field_locator)
+                self.salesforce._populate_field(field_locator,value)
+            elif 'datetime' in type :
+                locator=npsp_lex_locators["bge"]["datepicker_open"].format("Date")
+                self.selenium.click_element(field_locator)
+                self.selenium.wait_until_page_contains_element(locator)
+                self.selenium.input_text(field_locator,value,clear=True)
+                self.selenium.input_text(field_locator,value)
+                # option=npsp_lex_locators["span_button"].format(value)
+                # self.selenium.click_element(option)
+                # self.selenium.wait_until_page_does_not_contain_element(locator,error="could not open datepicker")
+            else:
+                self.selenium.scroll_element_into_view(field_locator)
+                self.salesforce._populate_field(field_locator,value)
+    def clear_form_fields(self,**kwargs):
+        """clear the gift entry modal form fields with specified values.
+        Key is field name and value is value to be entered for field """
+        for key,value in kwargs.items():
+            locator=npsp_lex_locators["gift_entry"]["modal_id"].format(key)
+            type=self.selenium.get_element_attribute(locator,"data-qa-locator")
+            field_locator=npsp_lex_locators["gift_entry"]["modal_field"].format(key,"input")
+            print(f"type is {type}")
+            if 'input autocomplete' in type :
+                self.salesforce._populate_field(locator,value)
+                value_locator=npsp_lex_locators["gift_entry"]["remove_lookup"].format(value)
+                self.selenium.wait_until_page_contains_element(value_locator)
+                self.selenium.scroll_element_into_view(value_locator)
+                self.selenium.click_element(value_locator)
+            elif type.startswith("autocomplete"):
+                self.salesforce._populate_field(field_locator,value)
+                option=npsp_lex_locators["gift_entry"]["modallookup-option"].format(value)
+                self.selenium.wait_until_page_contains_element(option)
+                try:
+                    self.selenium.click_element(option)
+                except ElementNotInteractableException:
+                    self.salesforce._jsclick(option)
+            elif 'combobox' in type :
+                self.selenium.wait_until_page_contains_element(field_locator)
+                self.selenium.click_element(field_locator)
+                popup=npsp_lex_locators["newflexi-popup"]
+                self.selenium.wait_until_page_contains_element(popup)
+                option=npsp_lex_locators["modalspan_button"].format(value)
+                try:
+                    self.selenium.click_element(option)
+                except ElementNotInteractableException:
+                    self.salesforce._jsclick(option)
+
+                #self.selenium.click_element(option)
+            elif 'textarea' in type :
+                field_locator=npsp_lex_locators["gift_entry"]["modal_field"].format(key,"textarea")
+                self.selenium.scroll_element_into_view(field_locator)
+                self.selenium.input_text(field_locator,value,clear=True)
+            else:
+                self.selenium.scroll_element_into_view(field_locator)
+                self.salesforce._populate_field(field_locator,value)
+
+    def verify_modal_default_value(self,**kwargs):
+        """verifies that the field contains given default value
+        where key=field name and value=default value"""
+        for key,value in kwargs.items():
+            locator=npsp_lex_locators["gift_entry"]["id"].format(key)
+            type=self.selenium.get_element_attribute(locator,"data-qa-locator")
+            
+            if 'textarea' in type :
+                field=npsp_lex_locators["gift_entry"]["field_input"].format(key,"textarea")
+            else:
+                field=npsp_lex_locators["gift_entry"]["id"].format(key)
+                self.selenium.wait_until_page_contains_element(field)
+                time.sleep(1)
+                element=self.selenium.get_webelement(field)
+                default_value=element.get_attribute("value")
+                assert value == default_value, f"Expected {key} default value to be {value} but found {default_value}"
+
+    def fill_new_template_form(self,**kwargs):
+        """Add default values to template builder form fields or set fields as required.
+        Key is field main label name and value is again another dictionary of field type and value
+        ex: Payment: Payment Method is Main Label with Default Value as field type and ChecK is value"""
+        self.selenium.execute_javascript("window.scrollBy(0,0)")
+        for field,option in kwargs.items():
+            for section,value in option.items():
+                if section=="Required":
+                    label=f'{section} {field}'
+                    if value=='checked':
+                        field_checkbox=npsp_lex_locators["gift_entry"]["field_input"].format(label,"input")
+                        self.selenium.scroll_element_into_view(field_checkbox)
+                        cb_loc=self.selenium.get_webelement(field_checkbox)
+                        if not cb_loc.is_selected():
+                            self.salesforce._jsclick(field_checkbox)
+                    elif value=='unchecked':
+                        field_checkbox=npsp_lex_locators["gift_entry"]["field_input"].format(label,"input")
+                        self.selenium.scroll_element_into_view(field_checkbox)
+                        cb_loc=self.selenium.get_webelement(field_checkbox)
+                        if cb_loc.is_selected():
+                            self.salesforce._jsclick(field_checkbox)
+                elif section=="Default Value":
+                    key=f'{section} {field}'
+                    field_loc=npsp_lex_locators["gift_entry"]["field_input"].format(key,"input")
+                    placeholder=self.selenium.get_webelement(field_loc).get_attribute("placeholder")
+                    self.selenium.scroll_element_into_view(field_loc)
+                    try:
+                        self.selenium.click_element(field_loc)
+                    except ElementClickInterceptedException:
+                        self.selenium.execute_javascript("window.scrollBy(0,100)")
+                        self.selenium.click_element(field_loc)
+                    if placeholder=="Select an Option":
+                        popup=npsp_lex_locators["flexipage-popup"]
+                        self.selenium.wait_until_page_contains_element(popup)
+                        option=npsp_lex_locators["span_button"].format(value)
+                        self.selenium.click_element(option)
+                    elif placeholder=="Search...":
+                        self.salesforce._populate_field(field_loc,value)
+                        qa_id="Select "+value
+                        option=npsp_lex_locators["gift_entry"]["id"].format(qa_id)
+                        self.selenium.wait_until_page_contains_element(option)
+                        try:
+                            self.selenium.click_element(option)
+                        except ElementNotInteractableExceptioin:
+                            self.salesforce._jsclick(option)
+                    elif "Date" in field:
+                        locator=npsp_lex_locators["bge"]["datepicker_open"].format("Date")
+                        self.selenium.wait_until_page_contains_element(locator)
+                        self.selenium.input_text(locator,value,clear=True)
+                        self.selenium.input_text(locator,value)
+                    else:
+                        self.salesforce._populate_field(field_loc,value)
+                elif section=="Field Label":
+                    key=f'{section} {field}'
+                    field_name=npsp_lex_locators["gift_entry"]["field_input"].format(key,"input")
+                    self.selenium.input_text(field_name,value,clear=True)
+
+    
+
